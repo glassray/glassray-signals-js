@@ -5,6 +5,7 @@
 [![Built by Glassray](https://img.shields.io/badge/Built%20by-Glassray-828fff?style=for-the-badge)](https://glassray.ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563eb?style=for-the-badge)](LICENSE)
 
+[![CI](https://github.com/glassray/glassray-signals-js/actions/workflows/ci.yml/badge.svg)](https://github.com/glassray/glassray-signals-js/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A518-339933?style=flat&logo=nodedotjs&logoColor=white)](package.json)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-4cb782?style=flat)](package.json)
 [![MCP](https://img.shields.io/badge/MCP-server%20wrapper-6f42c1?style=flat)](#-mcp-servers-in-one-line)
