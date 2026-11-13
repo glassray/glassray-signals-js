@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>@glassray/signals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  *{margin:0;box-sizing:border-box}
+  body{width:1200px;height:380px;background:#0f1011;overflow:hidden;
+       font-family:"Space Grotesk",system-ui,sans-serif;color:#f7f8f8;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;position:relative}
+  /* the signal arriving: a soft wash behind the mark */
+  .glow{position:absolute;width:760px;height:460px;top:-150px;
+        background:radial-gradient(ellipse at center,rgba(130,143,255,.22),rgba(130,143,255,0) 68%)}
+  .grid{position:absolute;inset:0;opacity:.35;
+        background-image:linear-gradient(#1a1c20 1px,transparent 1px),linear-gradient(90deg,#1a1c20 1px,transparent 1px);
+        background-size:28px 28px;
+        -webkit-mask-image:radial-gradient(ellipse at 50% 42%,#000 20%,transparent 72%)}
+  .row{display:flex;align-items:center;gap:22px;position:relative;z-index:1}
+  .mark{width:86px;height:86px;flex:none;filter:drop-shadow(0 0 18px rgba(130,143,255,.45))}
+  .mark rect{fill:#f4f5f7}
+  h1{font-size:60px;font-weight:600;letter-spacing:-.035em;line-height:1}
+  h1 .at{color:#828fff}
+  p{position:relative;z-index:1;margin-top:20px;font-size:20px;line-height:1.5;color:#a9adb6;
+    letter-spacing:-.012em;max-width:860px;text-align:center}
+  .kbd{position:relative;z-index:1;margin-top:26px;display:flex;gap:10px}
+  .kbd span{font-family:"JetBrains Mono",monospace;font-size:14px;color:#8a8f98;
+            border:1px solid #26282d;background:#151618;border-radius:7px;padding:7px 12px}
+  .kbd b{color:#4cb782;font-weight:500}
+</style></head>
+<body>
+  <div class="grid"></div><div class="glow"></div>
+  <div class="row">
+    <svg class="mark" viewBox="0 0 32 32"><rect x="13.632" y="7.317" width="1.610" height="1.610"/>
+<rect x="16.789" y="7.317" width="1.610" height="1.610"/>
+<rect x="12.053" y="8.896" width="1.610" height="1.610"/>
+<rect x="13.632" y="8.896" width="1.610" height="1.610"/>
+<rect x="15.211" y="8.896" width="1.610" height="1.610"/>
+<rect x="16.789" y="8.896" width="1.610" height="1.610"/>
+<rect x="18.368" y="8.896" width="1.610" height="1.610"/>
+<rect x="7.317" y="10.475" width="1.610" height="1.610"/>
+<rect x="8.896" y="10.475" width="1.610" height="1.610"/>
+<rect x="10.475" y="10.475" width="1.610" height="1.610"/>
+<rect x="12.053" y="10.475" width="1.610" height="1.610"/>
+<rect x="13.632" y="10.475" width="1.610" height="1.610"/>
+<rect x="15.211" y="10.475" width="1.610" height="1.610"/>
+<rect x="16.789" y="10.475" width="1.610" height="1.610"/>
+<rect x="18.368" y="10.475" width="1.610" height="1.610"/>
+<rect x="19.947" y="10.475" width="1.610" height="1.610"/>
+<rect x="21.525" y="10.475" width="1.610" height="1.610"/>
+<rect x="23.104" y="10.475" width="1.610" height="1.610"/>
+<rect x="4.160" y="12.053" width="1.610" height="1.610"/>
+<rect x="5.739" y="12.053" width="1.610" height="1.610"/>
+<rect x="7.317" y="12.053" width="1.610" height="1.610"/>
+<rect x="8.896" y="12.053" width="1.610" height="1.610"/>
+<rect x="10.475" y="12.053" width="1.610" height="1.610"/>
+<rect x="12.053" y="12.053" width="1.610" height="1.610"/>
+<rect x="13.632" y="12.053" width="1.610" height="1.610"/>
+<rect x="15.211" y="12.053" width="1.610" height="1.610"/>
+<rect x="16.789" y="12.053" width="1.610" height="1.610"/>
+<rect x="18.368" y="12.053" width="1.610" height="1.610"/>
+<rect x="19.947" y="12.053" width="1.610" height="1.610"/>
+<rect x="21.525" y="12.053" width="1.610" height="1.610"/>
+<rect x="23.104" y="12.053" width="1.610" height="1.610"/>
+<rect x="24.683" y="12.053" width="1.610" height="1.610"/>
+<rect x="26.261" y="12.053" width="1.610" height="1.610"/>
+<rect x="5.739" y="13.632" width="1.610" height="1.610"/>
+<rect x="7.317" y="13.632" width="1.610" height="1.610"/>
+<rect x="8.896" y="13.632" width="1.610" height="1.610"/>
+<rect x="10.475" y="13.632" width="1.610" height="1.610"/>
+<rect x="12.053" y="13.632" width="1.610" height="1.610"/>
+<rect x="13.632" y="13.632" width="1.610" height="1.610"/>
+<rect x="15.211" y="13.632" width="1.610" height="1.610"/>
+<rect x="16.789" y="13.632" width="1.610" height="1.610"/>
+<rect x="18.368" y="13.632" width="1.610" height="1.610"/>
+<rect x="19.947" y="13.632" width="1.610" height="1.610"/>
+<rect x="21.525" y="13.632" width="1.610" height="1.610"/>
+<rect x="23.104" y="13.632" width="1.610" height="1.610"/>
+<rect x="24.683" y="13.632" width="1.610" height="1.610"/>
+<rect x="8.896" y="15.211" width="1.610" height="1.610"/>
+<rect x="10.475" y="15.211" width="1.610" height="1.610"/>
+<rect x="12.053" y="15.211" width="1.610" height="1.610"/>
+<rect x="13.632" y="15.211" width="1.610" height="1.610"/>
+<rect x="15.211" y="15.211" width="1.610" height="1.610"/>
+<rect x="16.789" y="15.211" width="1.610" height="1.610"/>
+<rect x="18.368" y="15.211" width="1.610" height="1.610"/>
+<rect x="19.947" y="15.211" width="1.610" height="1.610"/>
+<rect x="21.525" y="15.211" width="1.610" height="1.610"/>
+<rect x="12.053" y="16.789" width="1.610" height="1.610"/>
+<rect x="13.632" y="16.789" width="1.610" height="1.610"/>
+<rect x="15.211" y="16.789" width="1.610" height="1.610"/>
+<rect x="16.789" y="16.789" width="1.610" height="1.610"/>
+<rect x="18.368" y="16.789" width="1.610" height="1.610"/>
+<rect x="13.632" y="18.368" width="1.610" height="1.610"/>
+<rect x="15.211" y="18.368" width="1.610" height="1.610"/>
+<rect x="16.789" y="18.368" width="1.610" height="1.610"/>
+<rect x="15.211" y="19.947" width="1.610" height="1.610"/>
+<rect x="15.211" y="21.525" width="1.610" height="1.610"/>
+<rect x="15.211" y="23.104" width="1.610" height="1.610"/></svg>
+    <h1><span class="at">@glassray</span>/signals</h1>
+  </div>
+  <p>What people do with your agent's work, and what the agent says about its own.</p>
+  <div class="kbd">
+    <span>wrapMcpServer(server, { product })</span>
+    <span><b>✓</b> 7 checks</span>
+    <span>0 dependencies</span>
+  </div>
+</body></html>

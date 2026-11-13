@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # The full suite needs Node's type stripping, because the tests run the TypeScript in
+  # src directly through the "source" export condition. That is Node 22.6 and later.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # no lockfile: there are no runtime dependencies, and the devDependencies are the
+      # TypeScript compiler and the two optional peers the tests exercise.
+      - run: npm install --no-package-lock --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  # What engines.node promises, checked against the built output rather than the source,
+  # because that is what an installer gets. On 18 and 20 the context falls back to a
+  # synchronous stack, since process.getBuiltinModule is not there yet.
+  floor:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install --no-package-lock --no-audit --no-fund
+      - run: node scripts/smoke.mjs

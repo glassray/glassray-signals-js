@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>@glassray/signals — the check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#0f1011; --chrome:#191a1c; --line:#26282d;
+    --ink:#e9eaec; --dim:#8a8f98; --faint:#6a6f78;
+    --ok:#4cb782; --crit:#eb6f5f; --accent:#828fff; --warn:#d4a24c;
+  }
+  *{margin:0;box-sizing:border-box}
+  body{background:#07080a;font:14px/1.6 "JetBrains Mono",ui-monospace,monospace;color:var(--ink);
+       display:flex;align-items:center;justify-content:center;height:100vh;padding:20px}
+  .term{width:780px;height:460px;background:var(--bg);border:1px solid var(--line);border-radius:10px;
+        overflow:hidden;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(0,0,0,.5)}
+  .bar{height:34px;flex:none;background:var(--chrome);border-bottom:1px solid var(--line);
+       display:flex;align-items:center;gap:7px;padding:0 12px}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .t{margin-left:8px;color:var(--faint);font-size:12px}
+  .body{flex:1;padding:14px 16px;overflow:hidden}
+  .ln{opacity:0;white-space:pre-wrap;animation:in .14s ease forwards}
+  @keyframes in{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+  .p{color:var(--accent)}.d{color:var(--dim)}.f{color:var(--faint)}
+  .ok{color:var(--ok)}.bad{color:var(--crit)}.add{color:var(--ok)}
+  .sp{height:10px}
+</style>
+</head>
+<body>
+<div class="term">
+  <div class="bar">
+    <span class="dot" style="background:#ec6a5e"></span>
+    <span class="dot" style="background:#f4bf4f"></span>
+    <span class="dot" style="background:#61c454"></span>
+    <span class="t">acme-mcp — npm test</span>
+  </div>
+  <div class="body" id="b"></div>
+</div>
+<script>
+const lines = [
+  ['<span class="p">$</span> npm test', 0],
+  ['<span class="sp"></span>', 120],
+  ['<span class="d">checkMcpServer: acme v1.0.0</span>', 140],
+  ['<span class="bad">✗ instructions</span><span class="f">: nothing tells agents to report, or to pass on the person\'s words</span>', 420],
+  ['<span class="bad">✗ report tool</span><span class="f">: no report_issue tool</span>', 340],
+  ['<span class="bad">✗ person\'s words</span><span class="f">: nothing carries what the person says in the agent\'s chat</span>', 340],
+  ['<span class="sp"></span>', 120],
+  ['<span class="bad">ok: false</span>  <span class="f">signals captured: 0</span>', 300],
+  ['<span class="sp"></span>', 900],
+  ['<span class="d">// one line, before the tools are registered</span>', 500],
+  ['<span class="add">+ wrapMcpServer(server, { product: "Acme", context })</span>', 700],
+  ['<span class="sp"></span>', 900],
+  ['<span class="p">$</span> npm test', 500],
+  ['<span class="sp"></span>', 120],
+  ['<span class="ok">✓ instructions</span><span class="f">: agents are told to report as they work, without asking first</span>', 360],
+  ['<span class="ok">✓ report tool</span><span class="f">: report_issue says to report even after recovering</span>', 300],
+  ['<span class="ok">✓ person\'s words</span><span class="f">: pass_on_user_reaction is there</span>', 300],
+  ['<span class="ok">✓ report sent</span><span class="f">: arrived as a signal from the agent (kind tool_failure)</span>', 300],
+  ['<span class="ok">✓ breadcrumbs</span><span class="f">: the report carries the calls before it: get_canvas (failed)</span>', 300],
+  ['<span class="ok">✓ person\'s words sent</span><span class="f">: the complaint arrived as negative, passed on by the agent</span>', 300],
+  ['<span class="ok">✓ who</span><span class="f">: signals say who the person is (maya)</span>', 300],
+  ['<span class="sp"></span>', 140],
+  ['<span class="ok">ok: true</span>   <span class="f">signals captured: 2</span>', 320],
+];
+const b = document.getElementById('b');
+const step = new URLSearchParams(location.search).get('step');
+if (step !== null) {
+  /* frame mode: render the first N entries at once, for the capture script that builds demo.gif */
+  for (const [html] of lines.slice(0, Number(step))) {
+    const d = document.createElement('div');
+    d.className = 'ln';
+    d.style.animation = 'none';
+    d.style.opacity = '1';
+    d.innerHTML = html;
+    b.appendChild(d);
+  }
+} else {
+  let t = 300;
+  for (const [html, gap] of lines) {
+    t += gap;
+    setTimeout(() => { const d = document.createElement('div'); d.className = 'ln'; d.innerHTML = html; b.appendChild(d); }, t);
+  }
+  /* hold the finished frame, then start over, so the page loops like the gif does */
+  setTimeout(() => { b.innerHTML = ''; location.reload(); }, t + 2600);
+}
+</script>
+</body>
+</html>
