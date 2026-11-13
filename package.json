@@ -1,0 +1,87 @@
+{
+  "name": "@glassray/signals",
+  "version": "0.3.0",
+  "description": "Send signals about your AI agent's work to Glassray: what people do with it, and what the agent says about it. One line for MCP servers, a setup skill for coding agents, and a check for your tests.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "mcp",
+    "observability",
+    "feedback",
+    "glassray"
+  ],
+  "homepage": "https://glassray.ai",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./mcp": {
+      "source": "./src/mcp/index.ts",
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/fix-dts.mjs",
+    "typecheck": "tsc -p .",
+    "prepare": "pnpm run build",
+    "test": "node --conditions=source --test test/*.test.ts"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": ">=1.17.0",
+    "zod": ">=3.25.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "@types/node": "^24.0.0",
+    "zod": "^4.1.12"
+  },
+  "bin": {
+    "glassray-signals": "./bin/glassray-signals.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./mcp": {
+        "types": "./dist/mcp/index.d.ts",
+        "default": "./dist/mcp/index.js"
+      },
+      "./testing": {
+        "types": "./dist/testing/index.d.ts",
+        "default": "./dist/testing/index.js"
+      }
+    }
+  }
+}
