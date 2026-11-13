@@ -44,7 +44,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && node scripts/fix-dts.mjs",
     "typecheck": "tsc -p .",
-    "prepare": "pnpm run build",
+    "prepare": "npm run build",
     "test": "node --conditions=source --test test/*.test.ts"
   },
   "peerDependencies": {
