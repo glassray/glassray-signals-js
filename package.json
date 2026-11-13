@@ -17,6 +17,13 @@
     "glassray"
   ],
   "homepage": "https://glassray.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glassray/glassray-signals-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/glassray/glassray-signals-js/issues"
+  },
   "exports": {
     ".": {
       "source": "./src/index.ts",

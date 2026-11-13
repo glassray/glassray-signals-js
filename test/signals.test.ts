@@ -329,3 +329,70 @@ test("the triggers are moments an agent can catch itself in, not a taxonomy", as
   const needed = (await client.listTools()).tools.find((t) => t.name === "report_issue")!.inputSchema.required as string[];
   assert.deepEqual([...needed].sort(), ["kind", "needed", "tried"], "the three questions are required, not requested");
 });
+
+/*
+ * bin/glassray-signals.mjs is a script, so its functions are hoisted and its constants are not.
+ * When it started work near the top, a person at a real terminal crashed at the hand-over with
+ * "Cannot access 'AGENTS' before initialization", after sign-in had already worked. Without a
+ * terminal the lookup is skipped, so no test that runs the script can see it. This reads it instead.
+ */
+test("the setup command starts only after every constant it reads is defined", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("../bin/glassray-signals.mjs", import.meta.url), "utf8");
+  const lines = source.split("\n");
+  const lastConst = lines.findLastIndex((l) => /^const [A-Z_a-z]+ = /.test(l));
+  const firstStart = lines.findIndex((l) => /^ {2}(await )?(done|login)\(\)/.test(l));
+  assert.ok(lastConst > 0 && firstStart > 0, "found the constants and the entry point");
+  assert.ok(firstStart > lastConst, `the script starts on line ${firstStart + 1}, before the constant on line ${lastConst + 1}`);
+});
+
+/*
+ * While a coding agent wires Glassray in, the setup command tells the setup page what is true in the
+ * repo. These are the facts it reads, from the files themselves and never from what the agent says.
+ */
+test("the setup command reads how far the repo has got, and what is being worked on", async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { execFileSync } = await import("node:child_process");
+  const { repoFacts } = (await import(new URL("../bin/progress.mjs", import.meta.url).href)) as {
+    repoFacts: (cwd: string) => { steps: { id: string; done: boolean; file?: string }[]; lastFile?: string };
+  };
+  const done = (cwd: string) => Object.fromEntries(repoFacts(cwd).steps.map((s) => [s.id, s.file ?? false]));
+
+  const repo = mkdtempSync(join(tmpdir(), "gr-facts-"));
+  try {
+    mkdirSync(join(repo, "server"));
+    mkdirSync(join(repo, "tests"));
+    writeFileSync(join(repo, "package.json"), JSON.stringify({ name: "acme", dependencies: { zod: "^4" } }));
+    writeFileSync(join(repo, "server/mcp.ts"), "export const server = 1;\n");
+    assert.deepEqual(done(repo), { sdk: false, init: false, mcp: false, signals: false, check: false }, "nothing yet, in a folder that is not a git repo");
+
+    /* the agent adds the dependency, then wraps the server and starts the SDK */
+    writeFileSync(join(repo, "package.json"), JSON.stringify({ name: "acme", dependencies: { "@glassray/signals": "^0.3.0" } }));
+    writeFileSync(join(repo, "server/mcp.ts"), 'import { init } from "@glassray/signals";\nimport { wrapMcpServer } from "@glassray/signals/mcp";\ninit();\nwrapMcpServer(server, { product: "Acme" });\n');
+    assert.deepEqual(done(repo), { sdk: "package.json", init: "server/mcp.ts", mcp: "server/mcp.ts", signals: false, check: false });
+
+    /* a test that calls init() and signal() says nothing about the product itself */
+    writeFileSync(join(repo, "tests/glassray.test.ts"), 'import { init, signal } from "@glassray/signals";\nimport { checkMcpServer } from "@glassray/signals/testing";\ninit();\nsignal({ source: "user", kind: "undo" });\nawait checkMcpServer(build);\n');
+    assert.deepEqual(done(repo), { sdk: "package.json", init: "server/mcp.ts", mcp: "server/mcp.ts", signals: false, check: "tests/glassray.test.ts" });
+
+    writeFileSync(join(repo, "server/undo.ts"), 'import { signal } from "@glassray/signals";\nexport const undo = () => signal({ source: "user", kind: "undo" });\n');
+    assert.equal(done(repo).signals, "server/undo.ts");
+
+    /* in a git repo it also says which file changed last, leaving out the key and the lockfile */
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: repo, stdio: "ignore" });
+    git("init", "-q");
+    writeFileSync(join(repo, ".env"), "GLASSRAY_API_KEY=gr_secret\n");
+    writeFileSync(join(repo, "bun.lock"), "{}");
+    const later = new Date(Date.now() + 5000);
+    utimesSync(join(repo, "tests/glassray.test.ts"), later, later);
+    utimesSync(join(repo, ".env"), new Date(Date.now() + 9000), new Date(Date.now() + 9000));
+    const facts = repoFacts(repo);
+    assert.equal(facts.lastFile, "tests/glassray.test.ts", "the file being worked on, never .env");
+    assert.equal(facts.steps.every((s) => s.done), true);
+    assert.ok(!JSON.stringify(facts).includes("gr_secret"), "paths and yes/no only, never what a file holds");
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});

@@ -1,6 +1,6 @@
 import type { SignalsClient } from "../client.ts";
 import { getContext, type SignalContext } from "../context.ts";
-import type { SignalInput } from "../types.ts";
+import type { SignalInput, WorkItem } from "../types.ts";
 
 /*
  * Breadcrumbs: the last tool calls, kept per user and work item (MCP servers are often stateless, a new
@@ -15,8 +15,11 @@ const CRUMBS_PER_KEY = 10;
 export const MAX_KEYS = 5000;
 const crumbs = new Map<string, Crumb[]>();
 
+/** A work item as one string: "canvas:c1" for a typed id. */
+export const workItemString = (w: WorkItem | undefined) => (w === undefined ? undefined : typeof w === "string" ? w : `${w.type}:${w.id}`);
+
 export function keyOf(ctx: SignalContext): string | null {
-  const work = ctx.workItem === undefined ? "" : typeof ctx.workItem === "string" ? ctx.workItem : `${ctx.workItem.type}:${ctx.workItem.id}`;
+  const work = workItemString(ctx.workItem) ?? "";
   if (!ctx.user && !work && !ctx.session) return null;
   return `${ctx.user ?? ""}|${work}|${ctx.session ?? ""}`;
 }
@@ -58,7 +61,7 @@ export function addBreadcrumbs(client: SignalsClient) {
     const recent = recentToolCalls(ctx).slice(-5);
     if (recent.length === 0) return s;
     const failed = [...recent].reverse().find((c) => !c.ok);
-    const trace = s.refs?.trace ?? failed?.trace;
+    const trace = s.refs?.trace ?? failed?.trace ?? recent[recent.length - 1]?.trace;
     return {
       ...s,
       ...(trace ? { refs: { ...s.refs, trace } } : {}),

@@ -5,6 +5,7 @@
 [![Built by Glassray](https://img.shields.io/badge/Built%20by-Glassray-828fff?style=for-the-badge)](https://glassray.ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563eb?style=for-the-badge)](LICENSE)
 
+[![npm](https://img.shields.io/npm/v/@glassray/signals.svg)](https://www.npmjs.com/package/@glassray/signals)
 [![CI](https://github.com/glassray/glassray-signals-js/actions/workflows/ci.yml/badge.svg)](https://github.com/glassray/glassray-signals-js/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/Node-%E2%89%A518-339933?style=flat&logo=nodedotjs&logoColor=white)](package.json)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-4cb782?style=flat)](package.json)
@@ -15,64 +16,42 @@
 
 # @glassray/signals
 
-**Your agent hits a broken tool, works around it, and says nothing. This package is the wiring that
-gets that report out, the wording that makes an agent send it, and a check that proves it arrived.**
+**Send Glassray what people do with your AI agent's work, and what the agent says about its own.
+One call for an MCP server.**
 
-Glassray collects two things about an agent's work: what the people using it do and say, and what
-the agent says about its own work. It links the two by work item, investigates when people are
-unhappy, and groups the causes into issues a coding agent can fix. This package is how both reach
-it, in one line for an MCP server.
+## Why
 
-## Why this exists
+- Agents work around broken tools and say nothing. We watched one hit four problems in a session,
+  work around all four and report none. Its reason: "the failures were self-healing, so none of them
+  felt like getting stuck."
+- People complain in the agent's chat, where your product never sees it.
+- A tool that politely asks for reports gets skipped. Another agent, on a server that asked, left out
+  three: "I invented a workaround and moved on instead of taking the extra call."
 
-In one session we watched, an agent hit four problems in the product it was using: a guide that
-contradicted a tool's schema, a missing parameter that made it send 1.2 KB of markup to change
-eight bullet glyphs, and two rounds of guessing argument names. It invented a workaround for every
-one and reported none. Asked afterwards why, it said: "the failures were self-healing, so none of
-them felt like getting stuck."
+## What it does
 
-A later session had the wording that answers that, and still reported nothing until it was asked
-outright, when it said: "I hit three things worth reporting and each time I invented a workaround
-and moved on instead of taking the extra call."
+`wrapMcpServer(server, { product })` gives your MCP server:
 
-Both runs had somewhere to put a report. Neither used it. So the tools here ship with the paragraph
-agents read when they connect, the required fields that are harder to skip than a polite request,
-and a check that tells you which of the two is missing from your server.
+- `report_issue` and `share_feedback`, which agents call as they work. `report_issue` has required
+  fields: what you needed, what you tried and, optionally, what would fix it.
+- `pass_on_user_reaction`, which carries the person's exact words from the agent's chat.
+- A paragraph in the server's instructions telling agents to use these without asking first, and to
+  report even when they recover.
+- The last few tool calls attached to every report, so it arrives with what led to it.
 
-## 📡 What a signal is
+`checkMcpServer` then proves it in your tests: it plays a scripted session against your server and
+checks what would reach Glassray. Outside MCP, `signal()` sends anything from your own code, such as
+an undo, a regenerate or a rating.
 
-A signal is one thing said or done about an agent's work, and it carries a `source`:
-
-- `user`: what a person did or said about the work. An undo, a regenerate, an edit, a rating, a reply.
-- `agent`: what the agent said about its own work. A tool that failed, input that came back cut off, a guess it had to make.
-
-Glassray links the two by work item, investigates when people are unhappy, and groups the causes
-into issues a coding agent can fix. Signals from users decide what matters; signals from agents
-explain why.
-
-Calls return at once and never throw. Signals are batched and sent in the background, so a Glassray
-outage cannot break your product, and the package has no runtime dependencies.
-
-## 🎬 The check, before and after
-
-<p align="center"><img src="docs/demo.gif" alt="A test run of checkMcpServer against an MCP server with no Glassray wiring: three checks fail and nothing is sent. One line is added, wrapMcpServer, and the same run passes seven checks and captures two signals." width="820"></p>
-
-That is `checkMcpServer` run twice against the same small server, first as written and then after
-adding the one `wrapMcpServer` line. It is a real run; [docs/demo.html](docs/demo.html) renders the
-animation and the frames are captured from it.
-
-| | Before | After |
-| --- | --- | --- |
-| Checks passed | 0 | 7 |
-| Checks failed | 3 | 0 |
-| Signals captured | 0 | 2 |
+Calls return at once and never throw, signals are sent in the background, and there are no runtime
+dependencies.
 
 ## 🚀 Quickstart
 
-**1. Install.** Not on npm yet, so install from this repository:
+**1. Install.** No runtime dependencies, Node 18 or later:
 
 ```sh
-npm install github:glassray/glassray-signals-js
+npm install @glassray/signals
 ```
 
 **2. Get a key** in the Glassray dashboard, under Settings → API keys. A signals key can only send.
@@ -139,25 +118,9 @@ wrapMcpServer(server, {
 });
 ```
 
-That adds three tools. `report_issue` and `share_feedback` carry what the agent says about your
-product. `pass_on_user_reaction` carries what the person said about the agent's work in the agent's
-own chat, word for word, which your product never sees otherwise.
-
-`report_issue` asks its three questions as required fields rather than as a request in prose: what
-you needed, what you tried, and, optionally, what would fix it. A required field is harder to skip
-than a polite instruction, and the optional one gives an agent somewhere to put a tool signature it
-has already worked out.
-
-The wrapper also adds a paragraph to the server's instructions telling agents to use those tools as
-they work and not to ask the person first. Agents that are not told this tend to ask
-permission first, and agents that recover from a problem tend to read themselves as never having
-been stuck. Your own instructions stay first.
-
-Every tool call then runs inside a context holding the person, the work item and the agent client
-from the MCP handshake, so a bare `signal()` inside a tool fills them in. Each call also leaves a
-breadcrumb: tool, ok or failed, the error, and how long it took. Signals from agents carry the last
-few, so a report arrives with the calls that led to it, which is the record of what happened next to
-the agent's account of it.
+Your own instructions stay first; ours are appended. Every tool call runs in a context holding the
+person, the work item and the agent client from the MCP handshake, so a bare `signal()` inside a tool
+is filled in.
 
 Needs `@modelcontextprotocol/sdk` and `zod`, which an MCP server already has. Both are optional
 peers, so the core of the package installs without them.
@@ -214,10 +177,17 @@ one reported without being asked.
 npx @glassray/signals setup
 ```
 
-copies the `glassray-setup` skill into `.claude/skills/`, or into any folder with `--to`. Then ask
-Claude Code, Cursor or Codex: "Set up Glassray in this repo using the glassray-setup skill." The
-skill walks it through finding your unit of work, wrapping the MCP server, hooking what people do to
-the agent's work, and proving it with `checkMcpServer` and one test per hook.
+sets Glassray up from start to finish. It copies the `glassray-setup` skill into `.claude/skills/`
+(or any folder with `--to`), then opens your browser to sign in: check the code there matches the one
+in your terminal and pick an organization. It writes a signals key to `.env`, sends a test signal, and
+hands over to your coding agent (Claude Code, Codex or Cursor, whichever is installed) in the same
+terminal. The agent follows the skill: it finds your unit of work, wraps the MCP server, hooks what
+people do to the agent's work, proves it with `checkMcpServer` and one test per hook, and sends one
+real signal. Nobody copies a key by hand.
+
+Options: `--endpoint` for your own Glassray server, `--env-file` for another file, `--agent claude`,
+`codex`, `cursor` or `none`, and `--no-login` to skip signing in. Run by an agent or in CI, it prints
+the prompt instead of starting another agent.
 
 ## ⚙️ Options for `init`
 
@@ -241,7 +211,6 @@ Call `await flush()` before a short-lived process exits, such as a script or a s
 | [src/mcp/](src/mcp/) | `wrapMcpServer`, the report and reaction tools, the instructions paragraph, breadcrumbs |
 | [src/testing/](src/testing/) | `checkMcpServer` and `formatChecks` |
 | [skills/glassray-setup/](skills/glassray-setup/) | The skill a coding agent reads to wire this up and prove it |
-| [docs/demo.html](docs/demo.html) | Renders the animation above; `docs/demo.gif` is captured from it |
 | [scripts/smoke.mjs](scripts/smoke.mjs) | Loads the built package and sends one signal, run on every Node version in CI |
 | [SECURITY.md](SECURITY.md) | What this sends and where, the install script, and how to report a hole |
 

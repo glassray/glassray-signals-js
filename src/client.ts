@@ -16,12 +16,30 @@ export type SignalsOptions = {
   onError?: (err: Error) => void;
   /** Signals held while Glassray is unreachable. Beyond this, new signals are dropped. Default 2000. */
   maxQueue?: number;
+  /**
+   * Edit or drop (return null) each span before it is queued (wrapMcpServer's toolCalls option). Spans
+   * carry user.id, work_item and the agent's own words in mcp.intent: scrub them here as in beforeSend.
+   */
+  beforeSendSpan?: (span: OtlpSpan) => OtlpSpan | null;
   /** Custom fetch, e.g. for tests. Defaults to the global fetch at send time. */
   fetch?: typeof fetch;
 };
 
 /** Adds fields to a signal from somewhere other than the context (the MCP wrapper adds recent tool calls). */
 export type Enricher = (signal: SignalInput, ctx: SignalContext) => SignalInput;
+
+/** One span in OTLP/HTTP JSON encoding, as /v1/traces reads it. */
+export type OtlpSpan = {
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  name: string;
+  kind?: number;
+  startTimeUnixNano: string;
+  endTimeUnixNano: string;
+  attributes: { key: string; value: { stringValue?: string; intValue?: string; boolValue?: boolean } }[];
+  status?: { code: number; message?: string };
+};
 
 /* works outside Node too (edge runtimes, browsers): no hard dependency on process */
 const env = (k: string) => (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.[k];
@@ -57,10 +75,12 @@ export function applyContext(s: SignalInput, ctx: SignalContext): SignalInput {
 export class SignalsClient {
   readonly enabled: boolean;
   private readonly url: string;
+  private readonly tracesUrl: string;
   private readonly key: string;
   private readonly opts: SignalsOptions;
   private readonly enrichers: Enricher[] = [];
   private queue: SignalInput[] = [];
+  private spans: OtlpSpan[] = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
   private inflight: Promise<void> = Promise.resolve();
   private lastWarn = 0;
@@ -70,6 +90,7 @@ export class SignalsClient {
     this.key = opts.apiKey ?? env("GLASSRAY_API_KEY") ?? "";
     const base = (opts.endpoint ?? env("GLASSRAY_ENDPOINT") ?? "https://app.glassray.ai").replace(/\/+$/, "");
     this.url = base.endsWith("/v1/signals") ? base : `${base}/v1/signals`;
+    this.tracesUrl = `${this.url.slice(0, -"/v1/signals".length)}/v1/traces`;
     this.enabled = (opts.enabled ?? true) && this.key.startsWith("gr_");
     /* no key: quietly off, as documented. A key that is not a Glassray key: say so once. */
     if ((opts.enabled ?? true) && this.key && !this.enabled) this.report(new Error("GLASSRAY_API_KEY does not look like a Glassray key (gr_...); signals are not sent"));
@@ -101,7 +122,32 @@ export class SignalsClient {
       this.report(err as Error);
       return;
     }
-    if (this.queue.length >= BATCH) this.send();
+    this.schedule(this.queue.length);
+  }
+
+  /**
+   * @internal Queues one OTLP span (JSON encoding) for /v1/traces. Used by wrapMcpServer's toolCalls
+   * option. Same rules as signals: batched every second, sent in the background, never throws.
+   */
+  _span(span: OtlpSpan): void {
+    if (!this.enabled) return;
+    try {
+      /* sampleRate keeps or drops whole traces, decided from the trace id, so a session is never cut in half */
+      const rate = this.opts.sampleRate ?? 1;
+      if (rate < 1 && parseInt(span.traceId.slice(0, 8), 16) / 0x1_0000_0000 >= rate) return;
+      const kept = this.opts.beforeSendSpan ? this.opts.beforeSendSpan(span) : span;
+      if (!kept) return;
+      if (this.spans.length >= (this.opts.maxQueue ?? 2000)) return;
+      this.spans.push(kept);
+    } catch (err) {
+      this.report(err as Error);
+      return;
+    }
+    this.schedule(this.spans.length);
+  }
+
+  private schedule(queued: number) {
+    if (queued >= BATCH) this.send();
     else if (!this.timer) {
       this.timer = setTimeout(() => {
         this.timer = null;
@@ -117,7 +163,7 @@ export class SignalsClient {
       clearTimeout(this.timer);
       this.timer = null;
     }
-    while (this.queue.length > 0) this.send();
+    while (this.queue.length > 0 || this.spans.length > 0) this.send();
     await this.inflight;
   }
 
@@ -134,15 +180,28 @@ export class SignalsClient {
   }
 
   private send() {
-    if (this.queue.length === 0) return;
-    const signals = this.queue.splice(0, BATCH);
+    if (this.queue.length > 0) this.post(this.url, { signals: this.queue.splice(0, BATCH) });
+    if (this.spans.length > 0) {
+      const spans = this.spans.splice(0, BATCH);
+      this.post(this.tracesUrl, {
+        resourceSpans: [
+          {
+            resource: { attributes: [{ key: "telemetry.sdk.name", value: { stringValue: "@glassray/signals" } }] },
+            scopeSpans: [{ scope: { name: "@glassray/signals" }, spans }],
+          },
+        ],
+      });
+    }
+  }
+
+  private post(url: string, body: unknown) {
     this.inflight = this.inflight.then(async () => {
       try {
         const doFetch = this.opts.fetch ?? globalThis.fetch;
-        const res = await doFetch(this.url, {
+        const res = await doFetch(url, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${this.key}` },
-          body: JSON.stringify({ signals }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) this.report(new Error(`Glassray returned ${res.status}: ${(await res.text()).slice(0, 200)}`));
       } catch (err) {

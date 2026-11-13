@@ -42,7 +42,9 @@ If the product's tests start a real server process, the fake fetch above can't s
 
 ## 4. A real signal, if a key is available
 
-If `GLASSRAY_API_KEY` is set, run the app and do one real action. Check it appears in Glassray under Signals.
+If `GLASSRAY_API_KEY` is set (in the environment or `.env`), run the app and do one real action that sends a signal through the code you added, with the real key and endpoint. Glassray's setup page is waiting for this one: it marks setup done when a signal arrives on any work item other than `setup:test`. If the app can't run here, send one through the module you added from a short script instead, and say so.
+
+Then check the data is complete, not only that it arrived. If the Glassray MCP server is connected (`claude mcp add --transport http glassray <GLASSRAY_ENDPOINT>/mcp`), call its `check_setup` tool: it grades what the product sent, such as a work item and person on every signal, both sources linked, sentiment and tool names, and says what to change for each gap. Fix what it flags and run it again. Otherwise the same check is on the setup page in the Glassray dashboard.
 
 ## 5. Report back
 
