@@ -1,5 +1,5 @@
 import { getContext, type SignalContext } from "./context.ts";
-import type { SignalInput } from "./types.ts";
+import { MAX_MESSAGE_CHARS, type SignalInput } from "./types.ts";
 
 export type SignalsOptions = {
   /** An API key from Glassray Settings (gr_...). Defaults to the GLASSRAY_API_KEY environment variable. */
@@ -46,6 +46,29 @@ const env = (k: string) => (globalThis as { process?: { env?: Record<string, str
 
 const FLUSH_MS = 1000;
 const BATCH = 200;
+
+/*
+ * The server's length limits (@glassray/schema). The server rejects a whole batch when one signal breaks
+ * them, so one over-long agent name would cost every signal sent in the same second. Cut instead.
+ */
+const cut = (v: string | undefined, max: number) => (typeof v === "string" && v.length > max ? v.slice(0, max) : v);
+const cutAll = <T extends Record<string, unknown>>(o: T, max: Partial<Record<keyof T, number>>): T => {
+  const out: Record<string, unknown> = { ...o };
+  for (const k in max) if (typeof out[k] === "string") out[k] = cut(out[k] as string, max[k]!);
+  return out as T;
+};
+
+/** Cuts every field to the server's limits, so a long value never drops the batch it travels in. */
+export function fitLimits(s: SignalInput): SignalInput {
+  const out = cutAll(s, { kind: 60, message: MAX_MESSAGE_CHARS, tool: 120, decision: MAX_MESSAGE_CHARS, evidence: MAX_MESSAGE_CHARS });
+  /* a cut idempotency key could match another signal's and hide it: send none instead */
+  if (typeof out.id === "string" && out.id.length > 120) delete out.id;
+  if (typeof out.work_item === "string") out.work_item = cut(out.work_item, 200);
+  else if (out.work_item) out.work_item = cutAll(out.work_item, { type: 60, id: 200 });
+  if (out.refs) out.refs = cutAll(out.refs, { run: 200, session: 200, trace: 200, message: 200, user: 200 });
+  if (out.agent) out.agent = cutAll(out.agent, { name: 120, version: 60, client: 120 });
+  return out;
+}
 
 /** Fills a signal from the context. Explicit fields always win. */
 export function applyContext(s: SignalInput, ctx: SignalContext): SignalInput {
@@ -117,7 +140,7 @@ export class SignalsClient {
       const kept = this.opts.beforeSend ? this.opts.beforeSend(s) : s;
       if (!kept) return;
       if (this.queue.length >= (this.opts.maxQueue ?? 2000)) return;
-      this.queue.push({ ...kept, at: kept.at ?? Date.now() });
+      this.queue.push(fitLimits({ ...kept, at: kept.at ?? Date.now() }));
     } catch (err) {
       this.report(err as Error);
       return;
@@ -204,6 +227,13 @@ export class SignalsClient {
           body: JSON.stringify(body),
         });
         if (!res.ok) this.report(new Error(`Glassray returned ${res.status}: ${(await res.text()).slice(0, 200)}`));
+        else if (url === this.url) {
+          /* the rest of the batch was stored; say which signals were not */
+          const reply = (await res.json().catch(() => null)) as { rejected?: { index: number; issues?: string[] }[] } | null;
+          const rejected = Array.isArray(reply?.rejected) ? reply.rejected : [];
+          if (rejected.length)
+            this.report(new Error(`Glassray rejected ${rejected.length} signal(s): ${rejected.slice(0, 3).map((r) => `#${r.index} ${(r.issues ?? []).join("; ")}`).join(" | ").slice(0, 300)}`));
+        }
       } catch (err) {
         this.report(err as Error);
       }
