@@ -72,11 +72,12 @@ async function connect(server: McpServer) {
   return client;
 }
 
-function demoServer(reportTools: boolean) {
+function demoServer(reportTools: boolean, toolCalls = false) {
   const server = new McpServer({ name: "demo", version: "1.0.0" });
   wrapMcpServer(server, {
     product: "Demo",
     reportTools,
+    toolCalls,
     context: ({ args }) => ({ user: "maya", ...(typeof args.canvas_id === "string" ? { workItem: { type: "canvas", id: args.canvas_id } } : {}) }),
   });
   server.registerTool("insert_instance", { inputSchema: { canvas_id: z.string(), name: z.string() } }, async ({ name }) =>
@@ -243,7 +244,7 @@ test("user_said on one of your own tools is noticed in any call, and named in th
 
 test("checkMcpServer passes a server set up with the one line, and restores the real client", async () => {
   const real = getClient();
-  const result = await checkMcpServer(() => demoServer(true), { failingCall: { tool: "insert_instance", args: { canvas_id: "c1", name: "PricingCard" } } });
+  const result = await checkMcpServer(() => demoServer(true, true), { failingCall: { tool: "insert_instance", args: { canvas_id: "c1", name: "PricingCard" } } });
   assert.ok(result.ok, formatChecks(result));
   assert.deepEqual(
     result.checks.map((c) => [c.name, c.status]),
@@ -255,10 +256,19 @@ test("checkMcpServer passes a server set up with the one line, and restores the 
       ["breadcrumbs", "pass"],
       ["person's words sent", "pass"],
       ["who", "pass"],
+      ["tool calls", "pass"],
     ],
   );
+  assert.equal(result.toolCalls, 1, "the failing call, not Glassray's own tools");
   assert.equal(getClient(), real, "the stand-in Glassray is gone afterwards");
   assert.equal(sent.length, 0, "nothing reached the real Glassray");
+});
+
+test("checkMcpServer warns when tool calls are not sent, and says how to send them", async () => {
+  const result = await checkMcpServer(() => demoServer(true), { failingCall: { tool: "insert_instance", args: { canvas_id: "c1", name: "PricingCard" } } });
+  assert.ok(result.ok, "a warning, not a failure");
+  assert.match(formatChecks(result), /! tool calls: .*toolCalls: true/);
+  assert.equal(result.toolCalls, 0);
 });
 
 test("checkMcpServer fails a bare server and says what to do", async () => {

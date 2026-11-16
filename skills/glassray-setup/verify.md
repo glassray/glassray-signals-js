@@ -37,7 +37,7 @@ The setup page marks setup done when the product sends its first real signal. Th
 End your reply with:
 - the unit of work and how the person is identified;
 - a table of every hook you added: file and line, kind, when it fires;
-- what `checkMcpServer` printed;
+- what `checkMcpServer` printed, including that tool calls reach Glassray;
 - the hooks you left for the second pass, and anything you can't hook, and why. For example: "the product can't tell agent edits from human edits";
 - one line telling the person how to send the first real signal: start the app as they usually do and use it once (for an MCP server, have an agent make one tool call). The setup page ticks when it arrives.
 

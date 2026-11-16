@@ -18,7 +18,8 @@ import type { SignalInput } from "../types.ts";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 export type Check = { name: string; status: CheckStatus; detail: string };
-export type CheckResult = { ok: boolean; checks: Check[]; signals: SignalInput[] };
+/** toolCalls: how many tool calls reached the stand-in Glassray as spans (wrapMcpServer's toolCalls option). */
+export type CheckResult = { ok: boolean; checks: Check[]; signals: SignalInput[]; toolCalls?: number };
 
 export type CheckOptions = {
   /** A call that fails on purpose (say, an id that does not exist). Checks that reports carry the calls before them. */
@@ -58,15 +59,22 @@ export async function checkMcpServer(makeServer: () => McpServer | Promise<McpSe
   const checks: Check[] = [];
   const add = (name: string, status: CheckStatus, detail: string) => checks.push({ name, status, detail });
   const signals: SignalInput[] = [];
+  let toolCalls = 0;
 
   /* a stand-in Glassray: the default client, and any client of the server's own, send here */
+  const ours = (url: string) => url.endsWith("/v1/signals") || url.endsWith("/v1/traces");
   const capture: typeof fetch = async (url, init) => {
     if (String(url).endsWith("/v1/signals")) signals.push(...(JSON.parse(String(init?.body)) as { signals: SignalInput[] }).signals);
+    if (String(url).endsWith("/v1/traces")) {
+      /* one span per tool call, under a root span per session: count the calls */
+      const body = JSON.parse(String(init?.body)) as { resourceSpans?: { scopeSpans?: { spans?: { parentSpanId?: string }[] }[] }[] };
+      for (const r of body.resourceSpans ?? []) for (const sc of r.scopeSpans ?? []) toolCalls += (sc.spans ?? []).filter((sp) => sp.parentSpanId).length;
+    }
     return new Response("{}", { status: 202 });
   };
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
-    String(input instanceof Request ? input.url : input).endsWith("/v1/signals") ? capture(input, init) : realFetch(input, init)) as typeof fetch;
+    ours(String(input instanceof Request ? input.url : input)) ? capture(input, init) : realFetch(input, init)) as typeof fetch;
   const stand = new SignalsClient({ apiKey: "gr_checkMcpServer", endpoint: "https://glassray.check", fetch: capture, onError: () => {} });
   const previous = _swapClient(stand);
 
@@ -174,13 +182,24 @@ export async function checkMcpServer(makeServer: () => McpServer | Promise<McpSe
           : "Signals do not say who the person is. Give wrapMcpServer a context that returns { user }, so Glassray can link a person's reactions to the agent's reports.",
       );
 
+    /* 6. the product's own tool calls reach Glassray, so its Activity, Sessions and Tools pages fill.
+       Only judged after a call to one of the product's tools: Glassray's own tools are never sent. */
+    if (o.failingCall)
+      add(
+        "tool calls",
+        toolCalls > 0 ? "pass" : "warn",
+        toolCalls > 0
+          ? `Tool calls arrive in Glassray (${toolCalls} in this session), with how long each took and whether it failed.`
+          : "Tool calls are not sent, so Glassray's Activity, Sessions and Tools pages stay empty. Pass toolCalls: true to wrapMcpServer. Leave it off only if the product already sends its tool calls to Glassray as OpenTelemetry traces.",
+      );
+
     await client.close();
   } finally {
     _swapClient(previous);
     globalThis.fetch = realFetch;
   }
 
-  return { ok: checks.every((c) => c.status !== "fail"), checks, signals };
+  return { ok: checks.every((c) => c.status !== "fail"), checks, signals, toolCalls };
 }
 
 /** One line per check, for an assertion message or a log. */
