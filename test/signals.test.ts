@@ -396,3 +396,42 @@ test("the setup command reads how far the repo has got, and what is being worked
     rmSync(repo, { recursive: true, force: true });
   }
 });
+
+/*
+ * Claude Code stays open at its prompt when it is done, so a live process is not a working agent. Its
+ * Stop hook marks the turn finished and the next prompt clears it; the setup command reports "waiting"
+ * in between. Run through a real shell, the way Claude Code runs hooks.
+ */
+test("the setup command says when Claude Code has finished its turn", async () => {
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { execSync } = await import("node:child_process");
+  const { claudeTurnHooks, startProgress } = (await import(new URL("../bin/progress.mjs", import.meta.url).href)) as {
+    claudeTurnHooks: (file: string) => { hooks: Record<"Stop" | "UserPromptSubmit", { hooks: { type: string; command: string }[] }[]> };
+    startProgress: (o: Record<string, unknown>) => { stop: (code: number) => Promise<void> };
+  };
+  const dir = mkdtempSync(join(tmpdir(), "glassray turn ")); /* a space, as in many home folders */
+  const finishedFile = join(dir, "finished");
+  const hooks = claudeTurnHooks(finishedFile).hooks;
+  const states: string[] = [];
+  const fetch = async (_url: string, init: { body: string }) => {
+    states.push((JSON.parse(init.body) as { state: string }).state);
+    return new Response("{}", { status: 202 });
+  };
+  const tick = () => new Promise((r) => setTimeout(r, 40));
+  const reporter = startProgress({ cwd: dir, endpoint: "https://glassray.test", apiKey: "gr_test", agent: "Claude Code", prompt: "p", finishedFile, everyMs: 20, fetch });
+  try {
+    await tick();
+    execSync(hooks.Stop[0]!.hooks[0]!.command);
+    await tick();
+    execSync(hooks.UserPromptSubmit[0]!.hooks[0]!.command);
+    execSync(hooks.UserPromptSubmit[0]!.hooks[0]!.command); /* a second prompt with nothing to clear is fine */
+    await tick();
+    await reporter.stop(0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  const changes = states.filter((s, i) => s !== states[i - 1]);
+  assert.deepEqual(changes, ["running", "waiting", "running", "exited"]);
+});

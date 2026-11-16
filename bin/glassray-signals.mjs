@@ -8,7 +8,7 @@
  *    You check the code in the browser matches the one printed here, then pick an organization.
  * 3. Sends one signal to prove the key works.
  * 4. Hands over to your coding agent (Claude Code, Codex or Cursor, whichever is installed) in this same
- *    terminal, to wire Glassray into the code and keep going until the skill's checks pass.
+ *    terminal, to wire Glassray into the code: the skill's first pass, until its checks pass.
  * No dependencies: Node 18+ has fetch.
  */
 import fs from "node:fs";
@@ -16,7 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { startProgress } from "./progress.mjs";
+import { claudeTurnHooks, startProgress } from "./progress.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skill = path.join(here, "..", "skills", "glassray-setup");
@@ -165,9 +165,12 @@ function openBrowser(url) {
   }
 }
 
-/* The coding agents we can hand over to, in the order we try them, with how each takes a first prompt. */
+/*
+ * The coding agents we can hand over to, in the order we try them, with how each takes a first prompt.
+ * Claude Code also takes a settings file, which is how it tells us when its turn ends (claudeTurnHooks).
+ */
 const AGENTS = [
-  { name: "claude", label: "Claude Code", bin: "claude", args: (p) => [p] },
+  { name: "claude", label: "Claude Code", bin: "claude", args: (p, settings) => [...(settings ? ["--settings", settings] : []), p] },
   { name: "codex", label: "Codex", bin: "codex", args: (p) => [p] },
   { name: "cursor", label: "Cursor", bin: "cursor-agent", args: (p) => [p] },
 ];
@@ -183,7 +186,7 @@ function installed(bin) {
  */
 async function done() {
   const skillPath = path.relative(process.cwd(), path.join(target, "SKILL.md"));
-  const prompt = `Set up Glassray in this repo using the glassray-setup skill (${skillPath}). GLASSRAY_API_KEY and GLASSRAY_ENDPOINT are already in ${envName}. Keep going until every step of the skill passes, including one real signal from the app.`;
+  const prompt = `Set up Glassray in this repo using the glassray-setup skill (${skillPath}). GLASSRAY_API_KEY and GLASSRAY_ENDPOINT are already in ${envName}, and setup already sent a test signal. Do the skill's first pass and stop when its checks pass.`;
   const wanted = flag("--agent");
   const interactive = process.stdin.isTTY && process.stdout.isTTY && !process.env.CI;
   const agent = wanted === "none" || !interactive ? null : AGENTS.find((a) => (wanted ? a.name === wanted : true) && installed(a.bin));
@@ -193,20 +196,28 @@ async function done() {
     console.log(`\nNow give your coding agent this prompt:\n\n  ${prompt}`);
     return;
   }
-  console.log(`\n→ Handing over to ${agent.label} to wire Glassray into your code. It keeps going until the checks pass.\n`);
+  console.log(`\n→ Handing over to ${agent.label} to wire Glassray into your code. It stops when the first pass's checks pass.\n`);
 
   /* While the agent works, tell Glassray what is true in the repo and that the agent is still alive,
      so the setup page fills in instead of sitting still. Nothing is printed: the terminal is the agent's. */
-  const reporter = session.apiKey?.startsWith("gr_") ? startProgress({ cwd: process.cwd(), endpoint: session.endpoint, apiKey: session.apiKey, agent: agent.label, prompt }) : null;
+  const reporting = session.apiKey?.startsWith("gr_");
+  /* Claude Code stays open at its prompt when it is done, so its process being alive says nothing.
+     Its Stop hook marks the turn finished, and the page says so instead of "working". */
+  const scratch = reporting && agent.name === "claude" ? fs.mkdtempSync(path.join(os.tmpdir(), "glassray-setup-")) : null;
+  const finishedFile = scratch ? path.join(scratch, "finished") : undefined;
+  const settings = scratch ? path.join(scratch, "settings.json") : undefined;
+  if (settings) fs.writeFileSync(settings, JSON.stringify(claudeTurnHooks(finishedFile)));
+  const reporter = reporting ? startProgress({ cwd: process.cwd(), endpoint: session.endpoint, apiKey: session.apiKey, agent: agent.label, prompt, finishedFile }) : null;
   /* Ctrl-C belongs to the agent. We stay, so we can say that it ended. */
   const hold = () => {};
   process.on("SIGINT", hold);
   const ended = await new Promise((resolve) => {
-    const child = spawn(agent.bin, agent.args(prompt), { stdio: "inherit" });
+    const child = spawn(agent.bin, agent.args(prompt, settings), { stdio: "inherit" });
     child.on("error", () => resolve({ failed: true }));
     child.on("exit", (code) => resolve({ code }));
   });
   process.off("SIGINT", hold);
+  if (scratch) fs.rmSync(scratch, { recursive: true, force: true });
   await reporter?.stop(ended.failed ? null : ended.code);
   if (ended.failed) console.log(`\n! Could not start ${agent.label}. Give your coding agent this prompt:\n\n  ${prompt}`);
 }

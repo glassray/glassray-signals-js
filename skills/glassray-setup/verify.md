@@ -1,14 +1,16 @@
 # Verify
 
-You are not done until these pass. If one can't run, say which and why.
+## First pass
 
-## 1. The repo's own checks
+You are done with the first pass when these pass. If one can't run, say which and why.
 
-Run the repo's typecheck, lint and tests. They must be as green as before you started.
+### 1. The repo's own checks
 
-## 2. The MCP server, with checkMcpServer
+Run the repo's typecheck and lint, and the tests for the files you changed. Run the full suite only if it takes a couple of minutes or less; otherwise leave it to the repo's CI and say so.
 
-Add a test next to the server's other tests. It must build the server the same way production does:
+### 2. The MCP server, with checkMcpServer
+
+Add one test next to the server's other tests. It must build the server the same way production does:
 
 ```ts
 import { checkMcpServer, formatChecks } from "@glassray/signals/testing";
@@ -22,9 +24,28 @@ it("Glassray hears from this MCP server", async () => {
 });
 ```
 
-It plays a short session against a stand-in Glassray, so nothing leaves the machine. Fix every ✗. Fix each `!` too, unless you can explain why it doesn't apply.
+It runs in memory against a stand-in Glassray, so nothing leaves the machine. Fix every ✗. Fix each `!` too, unless you can explain why it doesn't apply.
 
-## 3. Signals from users, one test per hook
+If the product has no MCP server, skip this and say so.
+
+### 3. Don't send a signal yourself
+
+The setup page marks setup done when the product sends its first real signal. That happens the first time someone uses the product with the key in `.env`. Don't start the app, sign up users, or write a script to make it happen: a signal from a test run or a script is not real use, and it lands in the person's data. Tell the person what to do instead (see the report).
+
+### 4. Report back
+
+End your reply with:
+- the unit of work and how the person is identified;
+- a table of every hook you added: file and line, kind, when it fires;
+- what `checkMcpServer` printed;
+- the hooks you left for the second pass, and anything you can't hook, and why. For example: "the product can't tell agent edits from human edits";
+- one line telling the person how to send the first real signal: start the app as they usually do and use it once (for an MCP server, have an agent make one tool call). The setup page ticks when it arrives.
+
+## Second pass
+
+Only when the person asks.
+
+### Signals from users, one test per hook
 
 For each `signal()` you added, write a test. Do the person's action through the product's real code path, then check that exactly one signal went out, with the right `kind`, `work_item` and `refs.user`. Capture what is sent by starting the SDK with a fake fetch:
 
@@ -40,16 +61,6 @@ Also test the negative case: the same action on work no agent touched sends noth
 
 If the product's tests start a real server process, the fake fetch above can't see it. Run a small stand-in Glassray instead: a local HTTP server that records POSTs to `/v1/signals`. Point `GLASSRAY_ENDPOINT` at it, and set `GLASSRAY_API_KEY=gr_test` for that server process.
 
-## 4. A real signal, if a key is available
+### Check the data Glassray received
 
-If `GLASSRAY_API_KEY` is set (in the environment or `.env`), run the app and do one real action that sends a signal through the code you added, with the real key and endpoint. Glassray's setup page is waiting for this one: it marks setup done when a signal arrives on any work item other than `setup:test`. If the app can't run here, send one through the module you added from a short script instead, and say so.
-
-Then check the data is complete, not only that it arrived. If the Glassray MCP server is connected (`claude mcp add --transport http glassray <GLASSRAY_ENDPOINT>/mcp`), call its `check_setup` tool: it grades what the product sent, such as a work item and person on every signal, both sources linked, sentiment and tool names, and says what to change for each gap. Fix what it flags and run it again. Otherwise the same check is on the setup page in the Glassray dashboard.
-
-## 5. Report back
-
-End your reply with:
-- the unit of work and how the person is identified;
-- a table of every hook you added: file and line, kind, when it fires;
-- what `checkMcpServer` printed;
-- anything you didn't hook, and why. For example: "the product can't tell agent edits from human edits".
+Once real signals have arrived, check they are complete, not only that they arrived. Glassray's MCP server has a `check_setup` tool: it grades what the product sent (a work item and person on every signal, both sources linked, sentiment, tool names) and says what to change for each gap. Use the server at the `GLASSRAY_ENDPOINT` in `.env`, at `<GLASSRAY_ENDPOINT>/mcp`. If the person has several servers named glassray, check you are calling that one. Without it, say so in your report: the person can connect it and ask you again.

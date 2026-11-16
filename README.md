@@ -181,9 +181,10 @@ sets Glassray up from start to finish. It copies the `glassray-setup` skill into
 (or any folder with `--to`), then opens your browser to sign in: check the code there matches the one
 in your terminal and pick an organization. It writes a signals key to `.env`, sends a test signal, and
 hands over to your coding agent (Claude Code, Codex or Cursor, whichever is installed) in the same
-terminal. The agent follows the skill: it finds your unit of work, wraps the MCP server, hooks what
-people do to the agent's work, proves it with `checkMcpServer` and one test per hook, and sends one
-real signal. Nobody copies a key by hand.
+terminal. The agent does the skill's first pass: it finds your unit of work, wraps the MCP server,
+hooks the clearest things people do to the agent's work, and proves it with `checkMcpServer`. Use
+your app once and the first real signal arrives. The rest of the hooks, and a test for each, are a
+second pass when you ask for it. Nobody copies a key by hand.
 
 Options: `--endpoint` for your own Glassray server, `--env-file` for another file, `--agent claude`,
 `codex`, `cursor` or `none`, and `--no-login` to skip signing in. Run by an agent or in CI, it prints

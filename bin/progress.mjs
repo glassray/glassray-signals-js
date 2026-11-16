@@ -113,9 +113,14 @@ export function repoFacts(cwd) {
 /**
  * Reports every few seconds until stop() is called with how the agent ended. Posting at all is the
  * heartbeat: when the posts stop without a final one, the terminal went away.
+ *
+ * An interactive agent stays open at its prompt after it finishes, so "its process is alive" is not
+ * "it is working". When the agent can tell us its turn ended (Claude Code's Stop hook writes
+ * finishedFile; see agentHooks), the state is "waiting" until the person types again.
  */
-export function startProgress({ cwd, endpoint, apiKey, agent, prompt, everyMs = 5000, fetch: fetchFn = globalThis.fetch }) {
+export function startProgress({ cwd, endpoint, apiKey, agent, prompt, finishedFile, everyMs = 5000, fetch: fetchFn = globalThis.fetch }) {
   const run = crypto.randomUUID();
+  const live = () => (finishedFile && fs.existsSync(finishedFile) ? "waiting" : "running");
   const send = async (state, exitCode) => {
     try {
       const facts = repoFacts(cwd);
@@ -129,13 +134,28 @@ export function startProgress({ cwd, endpoint, apiKey, agent, prompt, everyMs = 
       /* Glassray unreachable, or the repo unreadable for a moment: the next one may get through */
     }
   };
-  void send("running");
-  const timer = setInterval(() => void send("running"), everyMs);
+  void send(live());
+  const timer = setInterval(() => void send(live()), everyMs);
   timer.unref?.();
   return {
     stop: async (exitCode) => {
       clearInterval(timer);
       await send("exited", exitCode);
+    },
+  };
+}
+
+/**
+ * Claude Code settings that tell us when its turn ends: the Stop hook writes finishedFile, and the
+ * next prompt the person sends removes it. Plain node one-liners, so they run the same on every OS.
+ * They print nothing, so they change nothing about how Claude Code behaves.
+ */
+export function claudeTurnHooks(finishedFile, node = process.execPath) {
+  const run = (code) => `${JSON.stringify(node)} -e ${JSON.stringify(code)} ${JSON.stringify(finishedFile)}`;
+  return {
+    hooks: {
+      Stop: [{ hooks: [{ type: "command", command: run("require('fs').writeFileSync(process.argv[1], '')") }] }],
+      UserPromptSubmit: [{ hooks: [{ type: "command", command: run("try { require('fs').unlinkSync(process.argv[1]) } catch {}") }] }],
     },
   };
 }

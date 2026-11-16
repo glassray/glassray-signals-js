@@ -1,5 +1,35 @@
 # MCP servers
 
+## The SDK, all of it that setup uses
+
+This is the whole API you need. Don't read the SDK's code in `node_modules`; if something here is unclear, its `.d.ts` files say the same.
+
+```ts
+import { init, signal, withContext, flush } from "@glassray/signals";
+import { wrapMcpServer, userReactionFields, glassrayInstructions } from "@glassray/signals/mcp";
+import { checkMcpServer, formatChecks } from "@glassray/signals/testing";
+```
+
+- `init({ apiKey?, endpoint?, enabled?, onError?, fetch? })`: once at startup. Reads `GLASSRAY_API_KEY` and `GLASSRAY_ENDPOINT` when not passed. With no key, everything quietly does nothing.
+- `signal({ source, kind, message?, work_item?, refs?, tool?, context?, sentiment?, value? })`: returns at once, never throws. `source` is `"user"` or `"agent"`; `message` is required for `"agent"`. `work_item` is `{ type, id }`. `refs` is `{ user?, session?, trace? }`.
+- `withContext({ user?, workItem?, session?, trace?, agent?: { name?, client? }, extra? }, fn)`: runs `fn` with these filled in on every `signal()` inside it.
+- `flush()`: waits for queued signals. For tests and short scripts only.
+- `wrapMcpServer(server, options)`. The options, all optional:
+
+  | Option | Default | What it does |
+  |---|---|---|
+  | `product` | the server's name | The name agents read in the paragraph and tool descriptions |
+  | `context` | none | `({ tool, args, client }) => ({ user, workItem, agent })` for each tool call; may be async |
+  | `reportTools` | `true` | Adds `report_issue` and `share_feedback`. `false` when the product has its own |
+  | `ownReportTool`, `ownIdeaTool` | none | The product's own tool names, when `reportTools` is `false` |
+  | `reactionTool` | `true` | Adds `pass_on_user_reaction` |
+  | `instructions` | `true` | Adds the paragraph after the server's own instructions |
+  | `toolCalls` | `false` | Also sends each tool call as a span. Leave it off during setup |
+
+- `userReactionFields`: zod fields (`user_said`, `user_reaction`) to spread into a tool's `inputSchema`.
+- `glassrayInstructions({ product, reportTool?, ideaTool? })`: the paragraph as text, to place yourself.
+- `checkMcpServer(makeServer, { failingCall?, reportTool?, reportArgs?, reactionTool? })` returns `{ ok, checks, signals }`. It plays a short session in memory against a stand-in Glassray, so nothing leaves the machine. It checks five things: the instructions, the report tool, the person's words, a failing call, and that the report was sent. `formatChecks(result)` prints them.
+
 ## The one line
 
 Right after creating the server, **before any `registerTool`**:
@@ -67,6 +97,10 @@ server.registerTool("save_decision", { inputSchema: { canvas_id, decision, ...us
 ```
 
 Don't send those words yourself from the handler; that would send them twice.
+
+## Instructions get cut
+
+Clients read only the start of a server's instructions: ChatGPT about 512 characters, older Claude Code 2,048, current Claude Code 4,096. `wrapMcpServer` puts its paragraph after the product's own text, so the product's text is never what gets cut, but the paragraph may be. If the product has a test that limits the length of its instructions, keep that limit on the product's own text and allow for the paragraph after it. Don't drop the test.
 
 ## The product sets instructions elsewhere
 

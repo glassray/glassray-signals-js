@@ -49,6 +49,8 @@ type Common = {
   evidence?: string;
   /** "agent": a person said this in an agent's chat and the agent passed it on, word for word. */
   relayed_by?: "agent";
+  /** A test, not the product's data. Glassray runs it end to end, marks everything it sets off as a test, and can clean it all up. */
+  test?: boolean;
 };
 
 /** Something a person did or said about an agent's work: undo, regenerate, edit, rating, reply, export. */

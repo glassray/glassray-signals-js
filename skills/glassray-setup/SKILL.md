@@ -14,22 +14,29 @@ Glassray links the two by **work item** (the product's unit of work: a canvas, a
 
 ## Steps
 
-Do all of them, in order. You are done when step 6 passes.
+Setup has two passes. **Do the first pass now and stop when it passes.** Aim for ten minutes: someone is watching the setup page while you work. Do the second pass only when the person asks for it (the setup page gives them a prompt for each part).
 
-1. **Read the product before editing.** Answer these in your reply first:
+**First pass:** steps 1 to 6, with step 4 limited to the three clearest places a person reacts to the agent's work, and step 6 ending at [verify.md](verify.md)'s first pass.
+
+**Second pass, when asked:** the rest of step 4, and a test for each hook ([verify.md](verify.md), second pass).
+
+1. **Read the product before editing.** Read only what you need to answer these, then answer them in your reply:
    - Where do agents act? An MCP server, an agent loop inside the app, or both?
    - What is the unit of work, and where is its id? This becomes `work_item: { type, id }`, for example `{ type: "canvas", id }`.
    - How is the person identified at the places you will hook (user id, account id)? This becomes `refs.user`.
    - Does the product already have tools or endpoints for agents to report problems, or for people to rate the agent's work?
 2. **Install and start the SDK.** Add `@glassray/signals` with the repo's package manager. Call `init()` once at startup. On its own it reads `GLASSRAY_API_KEY` and `GLASSRAY_ENDPOINT` from the environment. If the repo keeps all settings in one module, pass them instead: `init({ apiKey: env.GLASSRAY_API_KEY ?? "", endpoint: env.GLASSRAY_ENDPOINT })`. Add both to `.env.example`. If `.env` already has them, `npx @glassray/signals setup` put them there: use them as they are, and never print or commit the key. If it has none, ask the person to run that command, or to create a signals key in Glassray under Settings → API keys. Without a key every call quietly does nothing, so no `if (glassrayEnabled)` guards are needed.
 3. **MCP server:** follow [mcp.md](mcp.md). Usually one line.
-4. **Signals from users:** follow [user-signals.md](user-signals.md). Find each place a person reacts to the agent's work and add one `signal()` call.
+4. **Signals from users:** follow [user-signals.md](user-signals.md). Find the places a person reacts to the agent's work and add one `signal()` call at each. In the first pass, do the three clearest (a delete, an undo, a reply to the agent) and list the rest in your report.
 5. **Agents inside the app (not MCP):** where the code already knows something went wrong (a tool error, a retry, a fallback, input it had to cut), send `signal({ source: "agent", kind: "tool_failure", tool, message })`. Keep the message specific: what was tried, what happened.
 6. **Verify:** follow [verify.md](verify.md). It ends with what to report back.
 
 ## Rules
 
 - **Glassray must never break the product.** `signal()` returns at once and never throws. Don't `await` it, don't wrap it in try/catch, don't add retries.
+- **Don't send test signals of your own.** Setup already sent one and the key works. A signal you send by hand (a curl, a probe, a script) lands in the person's real data. When the person asks you for a test signal (Glassray's setup page gives them a prompt for it), send exactly one, with `test: true`: Glassray marks it, and everything it sets off, as a test, keeps it out of their numbers, and can clean it up.
+- **Keep tests away from the real Glassray.** If the product's tests start a real server process, blank `GLASSRAY_API_KEY` and `GLASSRAY_ENDPOINT` for it, the way such harnesses blank other analytics keys. Otherwise every test run sends real signals from a developer's machine.
+- **Don't read the SDK's code.** [mcp.md](mcp.md) starts with everything setup uses.
 - **No secrets, keys or whole documents in messages.** Short, specific text. A person's own words about the agent's work are fine; that is the point.
 - **Only hook what the product really does.** Don't add buttons, endpoints or features just to have something to signal.
 - **Keep it small and in the repo's style.** If there are more than a few calls, put the Glassray helpers in one module (for example `glassray.ts`) and call those.
