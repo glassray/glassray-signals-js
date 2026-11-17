@@ -4,7 +4,7 @@ import { MAX_MESSAGE_CHARS, type SignalInput } from "./types.ts";
 export type SignalsOptions = {
   /** An API key from Glassray Settings (gr_...). Defaults to the GLASSRAY_API_KEY environment variable. */
   apiKey?: string;
-  /** Glassray origin. Defaults to GLASSRAY_ENDPOINT, then https://app.glassray.ai. */
+  /** Glassray origin. Defaults to GLASSRAY_ENDPOINT, then https://mcp-analytics.glassray.ai. */
   endpoint?: string;
   /** Turn sending off without removing calls. Default: on when there is a valid key. */
   enabled?: boolean;
@@ -111,7 +111,7 @@ export class SignalsClient {
   constructor(opts: SignalsOptions = {}) {
     this.opts = opts;
     this.key = opts.apiKey ?? env("GLASSRAY_API_KEY") ?? "";
-    const base = (opts.endpoint ?? env("GLASSRAY_ENDPOINT") ?? "https://app.glassray.ai").replace(/\/+$/, "");
+    const base = (opts.endpoint ?? env("GLASSRAY_ENDPOINT") ?? "https://mcp-analytics.glassray.ai").replace(/\/+$/, "");
     this.url = base.endsWith("/v1/signals") ? base : `${base}/v1/signals`;
     this.tracesUrl = `${this.url.slice(0, -"/v1/signals".length)}/v1/traces`;
     this.enabled = (opts.enabled ?? true) && this.key.startsWith("gr_");

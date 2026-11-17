@@ -21,7 +21,7 @@ import { claudeTurnHooks, startProgress } from "./progress.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skill = path.join(here, "..", "skills", "glassray-setup");
 const [cmd, ...rest] = process.argv.slice(2);
-const DEFAULT_ENDPOINT = "https://app.glassray.ai";
+const DEFAULT_ENDPOINT = "https://mcp-analytics.glassray.ai";
 
 const USAGE = `Usage: npx @glassray/signals setup [options]
 
@@ -70,7 +70,7 @@ async function login() {
   /* shown in the browser next to the code, so the person can tell this terminal's request from someone else's */
   const start = await post("/v1/cli/logins", { device: `${os.hostname()}, folder ${path.basename(process.cwd())}` });
   console.log(`
-Sign in to Glassray to get a key for this repo.
+Sign in to Glassray to get a key for this repo. No account yet? Create one on the same page.
 
   Your code:  ${start.user_code}
   Open:       ${start.url}

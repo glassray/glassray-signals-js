@@ -1,6 +1,6 @@
 {
   "name": "@glassray/signals",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Send signals about your AI agent's work to Glassray: what people do with it, and what the agent says about it. One line for MCP servers, a setup skill for coding agents, and a check for your tests.",
   "license": "MIT",
   "type": "module",

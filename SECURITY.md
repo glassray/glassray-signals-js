@@ -26,7 +26,7 @@ wiring Glassray into the repo: every few seconds, five yes or no facts (is the S
 path of the file each one was found in, and the path of the file changed most recently. Paths inside
 the repo only, never a file's contents, and never `.env` or a lockfile. It stops when the agent does.
 
-Signals go over HTTPS to `GLASSRAY_ENDPOINT`, which defaults to `https://app.glassray.ai`, and
+Signals go over HTTPS to `GLASSRAY_ENDPOINT`, which defaults to `https://mcp-analytics.glassray.ai`, and
 nowhere else. A signals key can only send: code holding it cannot read any signal, issue or
 investigation back out.
 

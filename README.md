@@ -195,7 +195,7 @@ the prompt instead of starting another agent.
 | Option | Default | |
 | --- | --- | --- |
 | `apiKey` | `GLASSRAY_API_KEY` | Without a valid key nothing is sent. |
-| `endpoint` | `GLASSRAY_ENDPOINT`, then `https://app.glassray.ai` | |
+| `endpoint` | `GLASSRAY_ENDPOINT`, then `https://mcp-analytics.glassray.ai` | |
 | `enabled` | `true` | Turn sending off without removing calls. |
 | `beforeSend` | | Edit a signal, or return `null` to drop it. Runs after context is filled in. |
 | `sampleRate` | `1` | Share of signals kept. |
