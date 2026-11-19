@@ -74,8 +74,8 @@ import { signal } from "@glassray/signals";
 // a person threw away what the agent made
 signal({ source: "user", kind: "undo", work_item: { type: "canvas", id: canvasId }, refs: { user: userId } });
 
-// the agent says what went wrong
-signal({ source: "agent", kind: "tool_failure", tool: "insert_instance", message: "PricingCard not found; drew rectangles instead" });
+// the agent says what it was trying to do and what happened, not just the error
+signal({ source: "agent", kind: "tool_failure", tool: "insert_instance", message: "Placing the team's PricingCard on the canvas, insert_instance said it was not found, so I drew rectangles instead" });
 ```
 
 `work_item` is your own unit of work, such as a canvas, a report or a ticket. It is how Glassray

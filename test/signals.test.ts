@@ -293,7 +293,7 @@ test("a product's own report_issue is its own: it keeps breadcrumbs, and its ide
   });
   server.registerTool("get_canvas", { inputSchema: { canvas_id: z.string() } }, async () => ({ isError: true, content: [{ type: "text" as const, text: "no canvas" }] }));
   const client = await connect(server);
-  assert.match(client.getInstructions() ?? "", /Ideas for making Acme better.*share_feedback/);
+  assert.match(client.getInstructions() ?? "", /ideas for making Acme better.*share_feedback/);
   await client.callTool({ name: "get_canvas", arguments: { canvas_id: "x" } });
   await client.callTool({ name: "report_issue", arguments: { message: "get_canvas failed" } });
   await flush();

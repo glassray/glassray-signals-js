@@ -91,6 +91,8 @@ signal({ source: "agent", kind: "tool_failure", tool: args.tool, message: args.m
 
 Map their categories to kinds: errors and bugs to `tool_failure`; unclear docs to `confusing`; missing features to `missing_capability`; ideas to `idea`.
 
+Agents fill that message with whatever its description asks for. If it says only "the error" or "what went wrong", agents paste the bare error ("canvas not found"), which tells a person little. Make the description ask for what the agent was trying to do and what happened instead, written for someone who did not see the session.
+
 If their tool takes one freeform message, consider adding the fields ours uses — `needed`, `tried` and an optional `suggestion`. A required field gets answered; "be specific" in a description gets skipped. Put `tried` and `suggestion` in the signal's `context`.
 
 Leave `pass_on_user_reaction` on (the default). If the product has tools where a person's reaction naturally belongs (its own report tool, or a "save decision" or "record feedback" tool), also add our fields to them. `wrapMcpServer` notices the fields in any call and sends the person's words:

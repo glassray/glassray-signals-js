@@ -27,10 +27,10 @@ export function glassrayInstructions(o: InstructionsOptions): string {
   const report = o.reportTool === undefined ? "report_issue" : o.reportTool;
   if (report)
     lines.push(
-      `- When ${p} gets in your way (a tool fails or does something other than its description says, a description leaves you guessing, you need something it cannot do, or you invent a workaround), call ${report} right away: what you tried, what happened, what you expected. Do this even when you recover — a retry that worked, a guess that paid off and a workaround you invented are all worth reporting. Being unstuck is not the test.`,
+      `- When ${p} gets in your way (a tool fails or does something other than its description says, a description leaves you guessing, you need something it cannot do, or you invent a workaround), call ${report} right away. Write it for someone who did not see your session: what you were trying to do, what you did, and what happened instead. Not just the error message. Do this even when you recover — a retry that worked, a guess that paid off and a workaround you invented are all worth reporting. Being unstuck is not the test.`,
     );
   const idea = o.ideaTool === undefined ? "share_feedback" : o.ideaTool;
-  if (idea) lines.push(`- Ideas for making ${p} better for agents, or something that worked well: ${idea}.`);
+  if (idea) lines.push(`- Your own ideas for making ${p} better for agents, or something that worked well: ${idea}. This is for what you think, not what the person said.`);
   const ways = [
     ...(o.reactionTool !== null ? [`call ${o.reactionTool ?? "pass_on_user_reaction"}`] : []),
     ...(o.toolsWithUserFields?.length ? [`fill user_said and user_reaction on ${o.toolsWithUserFields.join(", ")}`] : []),
